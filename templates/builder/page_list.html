@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}My Pages | YGITC Page Builder{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold text-gray-900">My Pages</h1>
+        <a href="{% url 'builder:page_builder_new' %}" class="btn-primary">
+            Create New Page
+        </a>
+    </div>
+    
+    {% if pages %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for page in pages %}
+                <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow">
+                    <div class="p-5">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-3">{{ page.title }}</h2>
+                        <div class="flex items-center text-gray-500 text-sm mb-4">
+                            <span>Created: {{ page.created_at|date:"M d, Y" }}</span>
+                            <span class="mx-2">•</span>
+                            <span>Last updated: {{ page.updated_at|date:"M d, Y" }}</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {% if page.is_published %}bg-green-100 text-green-800{% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                {% if page.is_published %}Published{% else %}Draft{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-5 py-3 border-t border-gray-200">
+                        <div class="flex justify-between items-center">
+                            <a href="{% url 'builder:page_builder_edit' page.slug %}" class="text-sm text-primary-600 hover:text-primary-800">
+                                Edit
+                            </a>
+                            <a href="{% url 'builder:page_detail' page.slug %}" class="text-sm text-primary-600 hover:text-primary-800" target="_blank">
+                                View
+                            </a>
+                            <form hx-post="{% url 'builder:api-page-publish' page.slug %}" hx-swap="none" hx-target="closest div">
+                                {% csrf_token %}
+                                <button type="submit" class="text-sm text-gray-600 hover:text-gray-800">
+                                    {% if page.is_published %}Unpublish{% else %}Publish{% endif %}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="bg-white rounded-lg shadow-md p-6 text-center">
+            <p class="text-gray-600 mb-4">You haven't created any pages yet.</p>
+            <a href="{% url 'builder:page_builder_new' %}" class="btn-primary inline-block">
+                Create Your First Page
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

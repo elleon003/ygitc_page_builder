@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Log In | YGITC Page Builder{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+    <h1 class="text-2xl font-bold text-gray-900 mb-6 text-center">Log In</h1>
+    
+    <div class="bg-white p-6 rounded-lg shadow-md">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            {% if form.errors %}
+                <div class="p-4 mb-4 rounded-lg bg-red-100 text-red-800" role="alert">
+                    <p>Your email or password is incorrect. Please try again.</p>
+                </div>
+            {% endif %}
+            
+            <div>
+                <label for="id_username" class="block text-sm font-medium text-gray-700">Email</label>
+                <input type="email" name="username" id="id_username" autocomplete="email" required 
+                       class="input-field">
+            </div>
+            
+            <div>
+                <label for="id_password" class="block text-sm font-medium text-gray-700">Password</label>
+                <input type="password" name="password" id="id_password" autocomplete="current-password" required 
+                       class="input-field">
+            </div>
+            
+            <div class="flex items-center justify-between">
+                <div class="flex items-center">
+                    <input id="remember_me" name="remember_me" type="checkbox" 
+                           class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded">
+                    <label for="remember_me" class="ml-2 block text-sm text-gray-900">
+                        Remember me
+                    </label>
+                </div>
+                
+                <div class="text-sm">
+                    <a href="{% url 'password_reset' %}" class="text-primary-600 hover:text-primary-800">
+                        Forgot your password?
+                    </a>
+                </div>
+            </div>
+            
+            <div>
+                <button type="submit" class="w-full btn-primary">
+                    Log in
+                </button>
+            </div>
+            
+            <input type="hidden" name="next" value="{{ next }}">
+        </form>
+    </div>
+</div>
+{% endblock %}

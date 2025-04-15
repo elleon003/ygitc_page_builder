@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if page %}Edit {{ page.title }}{% else %}Create New Page{% endif %} | YGITC Page Builder
+{% endblock %}
+
+{% block head %}
+    <!-- GrapeJS CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/grapesjs/dist/css/grapes.min.css">
+    <style>
+        /* Custom GrapeJS Editor Styles */
+        .gjs-one-bg { background-color: #f8fafc; }
+        .gjs-two-color { color: #0ea5e9; }
+        .gjs-three-bg { background-color: #0ea5e9; }
+        .gjs-four-color { color: #0c4a6e; }
+        
+        /* Make editor fill the available height */
+        #gjs {
+            height: calc(100vh - 130px);
+            overflow: hidden;
+        }
+        
+        /* Prevent overflow on the body when the editor is active */
+        body.gjs-editor-active {
+            overflow: hidden;
+        }
+        
+        /* Save button style */
+        .editor-save-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-4 flex items-center justify-between">
+    <h1 class="text-2xl font-bold text-gray-900">
+        {% if page %}Edit Page: {{ page.title }}{% else %}Create New Page{% endif %}
+    </h1>
+    <a href="{% url 'builder:page_list' %}" class="text-primary-600 hover:text-primary-800">
+        &larr; Back to Pages
+    </a>
+</div>
+
+<div id="page-form" class="mb-6 bg-white p-4 rounded-lg shadow">
+    <form id="page-details-form" class="space-y-4">
+        {% csrf_token %}
+        <div>
+            <label for="page-title" class="block text-sm font-medium text-gray-700">Page Title</label>
+            <input type="text" name="title" id="page-title" 
+                   value="{% if page %}{{ page.title }}{% endif %}" 
+                   class="input-field" required>
+        </div>
+        
+        <div>
+            <label for="page-slug" class="block text-sm font-medium text-gray-700">
+                Slug (URL path)
+            </label>
+            <input type="text" name="slug" id="page-slug" 
+                   value="{% if page %}{{ page.slug }}{% endif %}" 
+                   class="input-field" {% if page %}readonly{% endif %}>
+            <p class="mt-1 text-sm text-gray-500">
+                {% if page %}
+                    Slug cannot be changed after creation.
+                {% else %}
+                    Leave blank to auto-generate from title.
+                {% endif %}
+            </p>
+        </div>
+    </form>
+</div>
+
+<!-- GrapeJS Editor Container -->
+<div id="gjs" class="bg-white rounded-lg shadow"></div>
+
+<!-- Save Button (fixed position) -->
+<button id="save-page" class="editor-save-btn btn-primary">
+    Save Page
+</button>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- GrapeJS -->
+<script src="https://unpkg.com/grapesjs"></script>
+<!-- GrapeJS Plugins -->
+<script src="https://unpkg.com/grapesjs-preset-webpage"></script>
+<script src="https://unpkg.com/grapesjs-blocks-basic"></script>
+<script src="https://unpkg.com/grapesjs-plugin-forms"></script>
+<script src="https://unpkg.com/grapesjs-plugin-export"></script>
+<script src="https://unpkg.com/grapesjs-style-bg"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Page data from server
+        const pageData = {
+            id: {% if page %}{{ page.id }}{% else %}null{% endif %},
+            title: {% if page %}"{{ page.title }}"{% else %}""{% endif %},
+            content: {% if page %}{{ page.content|safe }}{% else %}{}{% endif %},
+            slug: {% if page %}"{{ page.slug }}"{% else %}""{% endif %}
+        };
+        
+        // Editor configuration
+        const editor = grapesjs.init({
+            container: '#gjs',
+            height: '100%',
+            fromElement: false,
+            storageManager: false,
+            plugins: [
+                'gjs-preset-webpage',
+                'gjs-blocks-basic',
+                'gjs-plugin-forms',
+                'gjs-plugin-export',
+                'gjs-style-bg'
+            ],
+            pluginsOpts: {
+                'gjs-preset-webpage': {
+                    navbarOpts: false,
+                    countdownOpts: false,
+                    formsOpts: false,
+                    exportOpts: false,
+                    blocks: ['link-block', 'quote', 'text-basic']
+                },
+                'gjs-blocks-basic': {
+                    flexGrid: true
+                }
+            },
+            deviceManager: {
+                devices: [
+                    {
+                        name: 'Desktop',
+                        width: '',
+                    },
+                    {
+                        name: 'Tablet',
+                        width: '768px',
+                        widthMedia: '768px',
+                    },
+                    {
+                        name: 'Mobile',
+                        width: '320px',
+                        widthMedia: '320px',
+                    }
+                ]
+            },
+            // Load project data if editing existing page
+            projectData: pageData.content,
+            canvas: {
+                styles: [
+                    '{% static "css/styles.css" %}',
+                    'https://unpkg.com/flowbite@2.2.0/dist/flowbite.min.css'
+                ],
+                scripts: [
+                    'https://unpkg.com/htmx.org@1.9.6',
+                    'https://unpkg.com/flowbite@2.2.0/dist/flowbite.min.js'
+                ]
+            }
+        });
+        
+        // Add the save button
+        document.getElementById('save-page').addEventListener('click', function() {
+            const title = document.getElementById('page-title').value;
+            if (!title) {
+                alert('Please enter a page title');
+                return;
+            }
+            
+            // Get HTML and CSS content
+            const html = editor.getHtml();
+            const css = editor.getCss();
+            
+            // Get project data (JSON of the project)
+            const content = editor.getProjectData();
+            
+            // Prepare form data
+            const formData = new FormData(document.getElementById('page-details-form'));
+            formData.append('html', html);
+            formData.append('css', css);
+            formData.append('content', JSON.stringify(content));
+            
+            // Determine if this is a create or update operation
+            const method = pageData.id ? 'PUT' : 'POST';
+            const url = pageData.id 
+                ? `/builder/api/pages/${pageData.slug}/` 
+                : '/builder/api/pages/';
+            
+            // Make the API request
+            fetch(url, {
+                method: method,
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to save page');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Redirect to the page list or reload the page
+                window.location.href = '{% url "builder:page_list" %}';
+            })
+            .catch(error => {
+                console.error('Error saving page:', error);
+                alert('Failed to save page. Please try again.');
+            });
+        });
+        
+        // Auto-generate slug from title if this is a new page
+        if (!pageData.id) {
+            document.getElementById('page-title').addEventListener('input', function(e) {
+                const title = e.target.value;
+                const slug = title.toLowerCase()
+                    .replace(/[^\w\s-]/g, '')
+                    .replace(/\s+/g, '-')
+                    .replace(/-+/g, '-');
+                document.getElementById('page-slug').value = slug;
+            });
+        }
+    });
+</script>
+{% endblock %}
